@@ -33,7 +33,7 @@ hardware with **TensorRT**, **DeepStream**, or **Triton**.
 
 ## Start here → agent skills
 
-The fastest way into TAO is the **[TAO Skill Bank](https://github.com/NVIDIA-TAO/tao-skills-bank)** —
+The fastest way into TAO is the **[TAO Skill Bank](https://github.com/NVIDIA-TAO/tao-skill-bank)** —
 portable agent skills that let a coding agent (Claude Code, Codex, Gemini CLI, or
 anything speaking the [Agent Skills open standard](https://agentskills.io)) train,
 fine-tune, and run inference on TAO models. **Zero Python required** for local
@@ -42,7 +42,7 @@ and the agent constructs `docker run` commands for you.
 
 ```text
 # In a Claude Code session
-/plugin marketplace add git@github.com:NVIDIA-TAO/tao-skills-bank.git
+/plugin marketplace add git@github.com:NVIDIA-TAO/tao-skill-bank.git
 /plugin install tao-skills@tao-skill-bank
 ```
 
@@ -59,7 +59,7 @@ All nine repositories are public and Apache-2.0 licensed.
 
 | Repository | What it is |
 | :--- | :--- |
-| **[tao-skills-bank](https://github.com/NVIDIA-TAO/tao-skills-bank)** | Portable agent skills for training, data prep, deployment, and end-to-end workflows across coding agents (Claude Code, Codex, Gemini CLI). Docker-native, no Python required to start. |
+| **[tao-skill-bank](https://github.com/NVIDIA-TAO/tao-skill-bank)** | Portable agent skills for training, data prep, deployment, and end-to-end workflows across coding agents (Claude Code, Codex, Gemini CLI). Docker-native, no Python required to start. |
 | **[tao-tutorials](https://github.com/NVIDIA-TAO/tao-tutorials)** | Legacy quick-start scripts and notebooks that run TAO end-to-end. Kept for reference; new users should start with the skill bank. |
 
 **Core toolkit**
@@ -117,7 +117,7 @@ Fine-tune from NVIDIA pretrained and foundation models, hosted on:
 
 ## Ways to run TAO
 
-Agent skills (**tao-skills-bank**), prebuilt **containers**, **Python wheels**,
+Agent skills (**tao-skill-bank**), prebuilt **containers**, **Python wheels**,
 or directly from **source**. Scale out to multi-node or **DGX Cloud (Lepton)**
 and **Brev** via the **[tao-sdks](https://github.com/NVIDIA-TAO/tao-sdks)**
 execution layer.
