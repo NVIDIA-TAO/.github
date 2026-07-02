@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 470" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#57606a"/>
+    </marker>
+    <marker id="arrowg" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#76b900"/>
+    </marker>
+  </defs>
+
+  <!-- card -->
+  <rect x="4" y="4" width="892" height="462" rx="16" fill="#ffffff" stroke="#d0d7de"/>
+
+  <!-- INTERFACE band -->
+  <rect x="40" y="30" width="820" height="74" rx="12" fill="#eef7dd" stroke="#cfe39a"/>
+  <text x="56" y="51" fill="#4a7a00" font-size="12.5" font-weight="700">INTERFACE — how you drive TAO</text>
+  <rect x="250" y="58" width="400" height="40" rx="8" fill="#ffffff" stroke="#76b900" stroke-width="1.5"/>
+  <text x="450" y="77" text-anchor="middle" fill="#1b1f23" font-size="14" font-weight="700">tao-skills-bank</text>
+  <text x="450" y="92" text-anchor="middle" fill="#57606a" font-size="11">portable agent skills · Docker-native · agent reads SKILL.md</text>
+
+  <!-- drives arrows -->
+  <line x1="165" y1="104" x2="165" y2="120" stroke="#76b900" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowg)"/>
+  <line x1="460" y1="104" x2="460" y2="120" stroke="#76b900" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowg)"/>
+  <line x1="755" y1="104" x2="755" y2="120" stroke="#76b900" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowg)"/>
+  <text x="472" y="117" fill="#4a7a00" font-size="10" font-style="italic">drives</text>
+
+  <!-- DATA group -->
+  <rect x="40" y="122" width="250" height="146" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="52" y="144" fill="#57606a" font-size="12" font-weight="700">DATA</text>
+  <rect x="56" y="156" width="218" height="50" rx="8" fill="#ffffff" stroke="#c9d1d9"/>
+  <text x="165" y="177" text-anchor="middle" fill="#1b1f23" font-size="13" font-weight="700">tao-data-services</text>
+  <text x="165" y="192" text-anchor="middle" fill="#57606a" font-size="10.5">augment · label · analyze</text>
+  <rect x="56" y="214" width="218" height="44" rx="8" fill="#ffffff" stroke="#c9d1d9"/>
+  <text x="165" y="234" text-anchor="middle" fill="#1b1f23" font-size="13" font-weight="700">tao-daft</text>
+  <text x="165" y="249" text-anchor="middle" fill="#57606a" font-size="10.5">dataset formats · validate · convert</text>
+
+  <!-- TRAIN group -->
+  <rect x="335" y="122" width="250" height="146" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="347" y="144" fill="#57606a" font-size="12" font-weight="700">TRAIN &amp; TUNE</text>
+  <rect x="351" y="156" width="218" height="50" rx="8" fill="#ffffff" stroke="#c9d1d9"/>
+  <text x="460" y="177" text-anchor="middle" fill="#1b1f23" font-size="13" font-weight="700">tao-pytorch</text>
+  <text x="460" y="192" text-anchor="middle" fill="#57606a" font-size="9.5">train · finetune · distill · quantize · export</text>
+  <rect x="351" y="214" width="218" height="44" rx="8" fill="#ffffff" stroke="#c9d1d9"/>
+  <text x="460" y="234" text-anchor="middle" fill="#1b1f23" font-size="13" font-weight="700">tao-automl</text>
+  <text x="460" y="249" text-anchor="middle" fill="#57606a" font-size="10.5">hyperparameter search</text>
+
+  <!-- DEPLOY group -->
+  <rect x="630" y="122" width="250" height="146" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="642" y="144" fill="#57606a" font-size="12" font-weight="700">DEPLOY</text>
+  <rect x="646" y="164" width="218" height="50" rx="8" fill="#ffffff" stroke="#c9d1d9"/>
+  <text x="755" y="185" text-anchor="middle" fill="#1b1f23" font-size="13" font-weight="700">tao-deploy</text>
+  <text x="755" y="200" text-anchor="middle" fill="#57606a" font-size="10.5">build TensorRT engines</text>
+  <rect x="646" y="224" width="218" height="30" rx="15" fill="#ffffff" stroke="#76b900"/>
+  <text x="755" y="243" text-anchor="middle" fill="#4a7a00" font-size="10.5" font-weight="600">TensorRT · DeepStream · Triton</text>
+
+  <!-- flow arrows between stages -->
+  <line x1="290" y1="188" x2="333" y2="188" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="585" y1="185" x2="628" y2="185" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="606" y="178" text-anchor="middle" fill="#57606a" font-size="10">ONNX</text>
+
+  <!-- runs-on arrows to execution -->
+  <line x1="165" y1="268" x2="165" y2="286" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="460" y1="268" x2="460" y2="286" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="755" y1="268" x2="755" y2="286" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="472" y="282" fill="#57606a" font-size="10" font-style="italic">runs on</text>
+
+  <!-- EXECUTION band -->
+  <rect x="40" y="288" width="820" height="74" rx="12" fill="#f3f9e8" stroke="#dcecbf"/>
+  <text x="56" y="309" fill="#4a7a00" font-size="12.5" font-weight="700">EXECUTION LAYER (optional)</text>
+  <rect x="250" y="316" width="400" height="40" rx="8" fill="#ffffff" stroke="#a9cf5a" stroke-width="1.5"/>
+  <text x="450" y="335" text-anchor="middle" fill="#1b1f23" font-size="14" font-weight="700">tao-sdks</text>
+  <text x="450" y="350" text-anchor="middle" fill="#57606a" font-size="10.5">job handles · multi-node · local GPU / DGX Cloud (Lepton) / Brev / k8s / SLURM</text>
+
+  <!-- FOUNDATION band -->
+  <rect x="40" y="378" width="820" height="44" rx="12" fill="#eef7dd" stroke="#cfe39a"/>
+  <text x="450" y="399" text-anchor="middle" fill="#1b1f23" font-size="13" font-weight="700">tao-core</text>
+  <text x="450" y="414" text-anchor="middle" fill="#57606a" font-size="10.5">stand-alone service · TAO Client CLI · shared API / microservice infrastructure</text>
+
+  <!-- footer -->
+  <text x="40" y="446" fill="#57606a" font-size="10.5" font-style="italic">tao-tutorials (legacy) — end-to-end notebook walkthroughs across all stages.</text>
+</svg>
