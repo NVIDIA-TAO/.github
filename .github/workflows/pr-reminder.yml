@@ -122,8 +122,6 @@ jobs:
           elif [[ "$INTERNAL" == "1" ]]; then
             {
               printf '%s\n' "$MARKER"
-              printf '%s\n' "### :wave: CI is not automatic on this repo"
-              printf '%s\n' ""
               printf '%s\n' "For security reasons, CI does not run automatically on NVIDIA's runners — it must be triggered per commit."
               printf '%s\n' ""
               printf '%s\n' "- Comment **\`/build\`** to run CI on your latest commit (\`$SHORT\`), and make sure **\`blossom-ci\`** is green before merging."
