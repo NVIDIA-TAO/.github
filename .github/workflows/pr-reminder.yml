@@ -64,17 +64,26 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           ASSOC: ${{ github.event.pull_request.author_association }}
+          VISIBILITY: ${{ github.event.repository.visibility }}
         run: |
           set -euo pipefail
           MARKER="<!-- tao-pr-reminder -->"
           SHORT="${HEAD_SHA:0:8}"
 
-          # Internal = write-ish association. An org member with PRIVATE membership
-          # can show as CONTRIBUTOR and get the external message — harmless.
-          case "$ASSOC" in
-            OWNER|MEMBER|COLLABORATOR) INTERNAL=1 ;;
-            *) INTERNAL=0 ;;
-          esac
+          # Internal detection:
+          #  - private/internal repos have NO external contributors (you must be an
+          #    org/enterprise member to open a PR), so everyone is internal.
+          #  - public repos: fall back to author_association. Note a private org
+          #    membership can read as CONTRIBUTOR here -> external message (harmless);
+          #    tighten later with an org-members check if it matters.
+          if [[ "$VISIBILITY" == "private" || "$VISIBILITY" == "internal" ]]; then
+            INTERNAL=1
+          else
+            case "$ASSOC" in
+              OWNER|MEMBER|COLLABORATOR) INTERNAL=1 ;;
+              *) INTERNAL=0 ;;
+            esac
+          fi
 
           # Resolve the Contribution-guide URL:
           #   explicit input  >  this repo's own CONTRIBUTING  >  org default  >  (omit)
