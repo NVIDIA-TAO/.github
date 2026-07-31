@@ -13,11 +13,15 @@ name: PR Reminder (reusable)
 #     remind:
 #       uses: NVIDIA-TAO/.github/.github/workflows/pr-reminder.yml@main
 #       secrets: inherit
+#       # with:
+#       #   contributing_url: https://...   # optional; auto-detected if omitted
 #
 # Posts a sticky comment (as tao-pr-bot) on every PR:
 #   - internal author, PR -> main : remind to run `/build` + keep blossom-ci green
 #   - external author, PR -> main : explain a maintainer triggers CI after vetting
 #   - PR -> release/*            : nudge to retarget to main + add the backport label
+# The internal/external messages also link the repo's Contribution guide
+# (auto-detected per repo, or the `contributing_url` input if provided).
 #
 # SECURITY: the caller runs on `pull_request_target` (needed to comment on fork
 # PRs). This workflow NEVER checks out or runs PR code — it only reads event
@@ -27,10 +31,16 @@ name: PR Reminder (reusable)
 #   TAO_PR_BOT_APP_ID, TAO_PR_BOT_PRIVATE_KEY
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      contributing_url:
+        description: "Override the Contribution-guide link (auto-detected if empty)."
+        required: false
+        type: string
+        default: ""
 
 permissions:
-  contents: read   # commenting uses the tao-pr-bot app token, not GITHUB_TOKEN
+  contents: read   # PROBE_TOKEN reads CONTRIBUTING; commenting uses the app token
 
 jobs:
   remind:
@@ -46,7 +56,9 @@ jobs:
 
       - name: Compose + upsert reminder
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          APP_TOKEN: ${{ steps.token.outputs.token }}      # posts the comment (Pull requests: write)
+          PROBE_TOKEN: ${{ github.token }}                 # reads CONTRIBUTING (contents: read)
+          CONTRIB_INPUT: ${{ inputs.contributing_url }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -63,6 +75,25 @@ jobs:
             OWNER|MEMBER|COLLABORATOR) INTERNAL=1 ;;
             *) INTERNAL=0 ;;
           esac
+
+          # Resolve the Contribution-guide URL:
+          #   explicit input  >  this repo's own CONTRIBUTING  >  org default  >  (omit)
+          CONTRIB="${CONTRIB_INPUT:-}"
+          if [ -z "$CONTRIB" ]; then
+            DEF=$(GH_TOKEN="$PROBE_TOKEN" gh api "repos/$REPO" --jq .default_branch 2>/dev/null || echo "main")
+            for p in CONTRIBUTING.md .github/CONTRIBUTING.md docs/CONTRIBUTING.md; do
+              if GH_TOKEN="$PROBE_TOKEN" gh api "repos/$REPO/contents/$p" >/dev/null 2>&1; then
+                CONTRIB="https://github.com/$REPO/blob/$DEF/$p"; break
+              fi
+            done
+          fi
+          if [ -z "$CONTRIB" ]; then
+            for p in CONTRIBUTING.md .github/CONTRIBUTING.md docs/CONTRIBUTING.md profile/CONTRIBUTING.md; do
+              if GH_TOKEN="$PROBE_TOKEN" gh api "repos/NVIDIA-TAO/.github/contents/$p" >/dev/null 2>&1; then
+                CONTRIB="https://github.com/NVIDIA-TAO/.github/blob/main/$p"; break
+              fi
+            done
+          fi
 
           # Build via printf so every workflow line stays indented (YAML-valid)
           # while the emitted markdown has no leading whitespace.
@@ -84,25 +115,35 @@ jobs:
               printf '%s\n' "$MARKER"
               printf '%s\n' "### :wave: CI is not automatic on this repo"
               printf '%s\n' ""
+              printf '%s\n' "For security reasons, CI does not run automatically on NVIDIA's runners — it must be triggered per commit."
+              printf '%s\n' ""
               printf '%s\n' "- Comment **\`/build\`** to run CI on your latest commit (\`$SHORT\`), and make sure **\`blossom-ci\`** is green before merging."
               printf '%s\n' "- **Re-run \`/build\` after each new push** — CI is pinned to the head commit, so a stale run won't count."
+              if [ -n "$CONTRIB" ]; then
+                printf '%s\n' ""
+                printf '%s\n' ":book: **Contribution guide:** $CONTRIB"
+              fi
             } > body.md
           else
             {
               printf '%s\n' "$MARKER"
               printf '%s\n' "### :wave: Thanks for the contribution!"
               printf '%s\n' ""
-              printf '%s\n' "CI runs on NVIDIA's runners only **after a maintainer vets this PR**. A TAO maintainer will review and trigger CI (\`/build\`) for you — no action needed on your side beyond addressing review feedback."
+              printf '%s\n' "For security reasons, CI runs on NVIDIA's runners only **after a maintainer vets this PR**. A TAO maintainer will review and trigger CI (\`/build\`) for you — no action needed on your side beyond addressing review feedback."
+              if [ -n "$CONTRIB" ]; then
+                printf '%s\n' ""
+                printf '%s\n' ":book: Please review the **Contribution guide:** $CONTRIB"
+              fi
             } > body.md
           fi
 
           # Upsert: find an existing marker comment -> PATCH it, else POST a new one.
-          CID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+          CID=$(GH_TOKEN="$APP_TOKEN" gh api "repos/$REPO/issues/$PR/comments" --paginate \
                   --jq "map(select(.body | contains(\"$MARKER\"))) | .[0].id // empty")
           if [[ -n "$CID" ]]; then
-            gh api -X PATCH "repos/$REPO/issues/comments/$CID" -F body=@body.md >/dev/null
+            GH_TOKEN="$APP_TOKEN" gh api -X PATCH "repos/$REPO/issues/comments/$CID" -F body=@body.md >/dev/null
             echo "updated sticky comment $CID"
           else
-            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@body.md >/dev/null
+            GH_TOKEN="$APP_TOKEN" gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@body.md >/dev/null
             echo "created sticky comment"
           fi
