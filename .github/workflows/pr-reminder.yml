@@ -130,7 +130,7 @@ jobs:
               printf '%s\n' "- **Re-run \`/build\` after each new push** — CI is pinned to the head commit, so a stale run won't count."
               if [ -n "$CONTRIB" ]; then
                 printf '%s\n' ""
-                printf '%s\n' ":book: **Contribution guide:** $CONTRIB"
+                printf '%s\n' ":book: **[Contribution guide]($CONTRIB)**"
               fi
             } > body.md
           else
@@ -141,7 +141,7 @@ jobs:
               printf '%s\n' "For security reasons, CI runs on NVIDIA's runners only **after a maintainer vets this PR**. A TAO maintainer will review and trigger CI (\`/build\`) for you — no action needed on your side beyond addressing review feedback."
               if [ -n "$CONTRIB" ]; then
                 printf '%s\n' ""
-                printf '%s\n' ":book: Please review the **Contribution guide:** $CONTRIB"
+                printf '%s\n' ":book: Please review the **[Contribution guide]($CONTRIB)**."
               fi
             } > body.md
           fi
