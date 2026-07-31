@@ -1,0 +1,108 @@
+name: PR Reminder (reusable)
+
+# Reusable PR-reminder used org-wide. Each repo adds a thin caller:
+#
+#   name: PR Reminder
+#   on:
+#     pull_request_target:
+#       types: [opened, reopened, ready_for_review, edited]
+#   concurrency:
+#     group: pr-reminder-${{ github.event.pull_request.number }}
+#     cancel-in-progress: true
+#   jobs:
+#     remind:
+#       uses: NVIDIA-TAO/.github/.github/workflows/pr-reminder.yml@main
+#       secrets: inherit
+#
+# Posts a sticky comment (as tao-pr-bot) on every PR:
+#   - internal author, PR -> main : remind to run `/build` + keep blossom-ci green
+#   - external author, PR -> main : explain a maintainer triggers CI after vetting
+#   - PR -> release/*            : nudge to retarget to main + add the backport label
+#
+# SECURITY: the caller runs on `pull_request_target` (needed to comment on fork
+# PRs). This workflow NEVER checks out or runs PR code — it only reads event
+# metadata and posts a comment. Do not add `actions/checkout` of the PR head.
+#
+# Requires secrets (via `secrets: inherit` — set once at org level):
+#   TAO_PR_BOT_APP_ID, TAO_PR_BOT_PRIVATE_KEY
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read   # commenting uses the tao-pr-bot app token, not GITHUB_TOKEN
+
+jobs:
+  remind:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint tao-pr-bot token
+        id: token
+        uses: actions/create-github-app-token@v2   # TODO: pin to a commit SHA
+        with:
+          app-id: ${{ secrets.TAO_PR_BOT_APP_ID }}
+          private-key: ${{ secrets.TAO_PR_BOT_PRIVATE_KEY }}
+
+      - name: Compose + upsert reminder
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ASSOC: ${{ github.event.pull_request.author_association }}
+        run: |
+          set -euo pipefail
+          MARKER="<!-- tao-pr-reminder -->"
+          SHORT="${HEAD_SHA:0:8}"
+
+          # Internal = write-ish association. An org member with PRIVATE membership
+          # can show as CONTRIBUTOR and get the external message — harmless.
+          case "$ASSOC" in
+            OWNER|MEMBER|COLLABORATOR) INTERNAL=1 ;;
+            *) INTERNAL=0 ;;
+          esac
+
+          # Build via printf so every workflow line stays indented (YAML-valid)
+          # while the emitted markdown has no leading whitespace.
+          if [[ "$BASE_REF" == release/* ]]; then
+            {
+              printf '%s\n' "$MARKER"
+              printf '%s\n' "### :warning: This PR targets a release branch (\`$BASE_REF\`)"
+              printf '%s\n' ""
+              printf '%s\n' "This repo is **trunk-based** — fixes normally land on \`main\` first, then get backported."
+              printf '%s\n' ""
+              printf '%s\n' "**Please:**"
+              printf '%s\n' "1. Retarget this PR to **\`main\`**."
+              printf '%s\n' "2. Add the label **\`$BASE_REF\`** so \`tao-cherry-pick-bot\` backports it to \`$BASE_REF\` after merge."
+              printf '%s\n' ""
+              printf '%s\n' "If this is a **release-only** fix (code that no longer exists on \`main\`), add the label **\`release-only\`** to proceed here."
+            } > body.md
+          elif [[ "$INTERNAL" == "1" ]]; then
+            {
+              printf '%s\n' "$MARKER"
+              printf '%s\n' "### :wave: CI is not automatic on this repo"
+              printf '%s\n' ""
+              printf '%s\n' "- Comment **\`/build\`** to run CI on your latest commit (\`$SHORT\`), and make sure **\`blossom-ci\`** is green before merging."
+              printf '%s\n' "- **Re-run \`/build\` after each new push** — CI is pinned to the head commit, so a stale run won't count."
+            } > body.md
+          else
+            {
+              printf '%s\n' "$MARKER"
+              printf '%s\n' "### :wave: Thanks for the contribution!"
+              printf '%s\n' ""
+              printf '%s\n' "CI runs on NVIDIA's runners only **after a maintainer vets this PR**. A TAO maintainer will review and trigger CI (\`/build\`) for you — no action needed on your side beyond addressing review feedback."
+            } > body.md
+          fi
+
+          # Upsert: find an existing marker comment -> PATCH it, else POST a new one.
+          CID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+                  --jq "map(select(.body | contains(\"$MARKER\"))) | .[0].id // empty")
+          if [[ -n "$CID" ]]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$CID" -F body=@body.md >/dev/null
+            echo "updated sticky comment $CID"
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@body.md >/dev/null
+            echo "created sticky comment"
+          fi
