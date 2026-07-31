@@ -47,7 +47,7 @@ and the agent constructs `docker run` commands for you.
 ```
 
 Prefer to follow docs? See the
-**[Getting Started guide](https://docs.nvidia.com/tao/tao-toolkit/text/tao_toolkit_quick_start_guide.html)**
+**[Getting Started guide](https://docs.nvidia.com/tao/tao-toolkit/latest/text/getting_started.html)**
 in the TAO documentation. The legacy notebook walkthroughs live in
 **[tao-tutorials](https://github.com/NVIDIA-TAO/tao-tutorials)**.
 
@@ -129,10 +129,10 @@ and container licenses are described on their respective NGC model cards.
 
 ## Learn more
 
-- 🚀 [Getting Started guide](https://docs.nvidia.com/tao/tao-toolkit/text/tao_toolkit_quick_start_guide.html)
+- 🚀 [Getting Started guide](https://docs.nvidia.com/tao/tao-toolkit/latest/text/getting_started.html)
 - 📚 [TAO Documentation](https://docs.nvidia.com/tao/tao-toolkit/text/overview.html)
 - 🎥 [TAO quick-start video](https://www.nvidia.com/en-us/on-demand/session/other2022-tao/)
-- ✍️ [NVIDIA Developer Blog — TAO](https://developer.nvidia.com/blog/tag/tao-toolkit/)
+- ✍️ [NVIDIA Developer Blog — TAO](https://developer.nvidia.com/blog/post-train-nvidia-cosmos-3-in-one-day-using-agent-skills/)
 
 <div align="center">
   <sub>Built by NVIDIA · Deploy anywhere with TensorRT, DeepStream, and Triton</sub>
