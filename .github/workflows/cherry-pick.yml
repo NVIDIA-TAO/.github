@@ -91,10 +91,14 @@ jobs:
             git checkout -B "cp-work" "origin/$BR"
 
             if git cherry-pick -x "$MERGE_SHA"; then
-              git push origin "HEAD:$BR"
-              NEW=$(git rev-parse --short HEAD)
-              echo "  clean -> pushed to $BR ($NEW)"
-              echo "- \`$BR\`: :white_check_mark: cherry-picked cleanly (\`$NEW\`)" >> summary.md
+              if git push origin "HEAD:$BR" 2>push.err; then
+                NEW=$(git rev-parse --short HEAD)
+                echo "  clean -> pushed to $BR ($NEW)"
+                echo "- \`$BR\`: :white_check_mark: cherry-picked cleanly (\`$NEW\`)" >> summary.md
+              else
+                echo "  push REJECTED:"; cat push.err
+                echo "- \`$BR\`: :x: cherry-picked cleanly but the push was **rejected** — is \`tao-cherry-pick-bot\` in the bypass list for every release-branch ruleset? (\`$(head -1 push.err | tr -d '\r')\`)" >> summary.md
+              fi
             else
               echo "  conflict -> draft PR"
               git add -A
