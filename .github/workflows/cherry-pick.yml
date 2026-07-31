@@ -1,0 +1,133 @@
+name: Cherry-pick to release (reusable)
+
+# Reusable backport used org-wide. Each repo adds a thin caller:
+#
+#   name: Cherry-pick to release
+#   on:
+#     pull_request_target:
+#       types: [closed]
+#   jobs:
+#     cherry-pick:
+#       if: >-
+#         github.event.pull_request.merged == true &&
+#         github.event.pull_request.base.ref == 'main'
+#       uses: NVIDIA-TAO/.github/.github/workflows/cherry-pick.yml@main
+#       secrets: inherit
+#
+# When a PR merges to main, this cherry-picks its merge commit onto every
+# release branch named by a `release/X.Y.Z` label on the PR (label == branch):
+#   - clean  -> blind-push straight to the release branch (the bot bypasses the
+#               release ruleset + the blossom-ci required check)
+#   - conflict -> push a `cherry-pick/...` branch and open a DRAFT PR to the
+#                 release branch, assigned to the PR author, for manual resolve
+# A summary comment is posted back on the original PR.
+#
+# Cherry-picks a MERGED (already-reviewed, on-main) commit — no untrusted PR
+# code is executed. Runs as tao-cherry-pick-bot via an app token.
+#
+# Requires secrets (via `secrets: inherit` — set once at org level):
+#   TAO_CHERRY_PICK_BOT_APP_ID, TAO_CHERRY_PICK_BOT_PRIVATE_KEY
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+jobs:
+  cherry-pick:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint tao-cherry-pick-bot token
+        id: token
+        uses: actions/create-github-app-token@v2   # TODO: pin to a commit SHA
+        with:
+          app-id: ${{ secrets.TAO_CHERRY_PICK_BOT_APP_ID }}
+          private-key: ${{ secrets.TAO_CHERRY_PICK_BOT_PRIVATE_KEY }}
+
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+
+      - name: Cherry-pick to labeled release branches
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+
+          git config user.name  "tao-cherry-pick-bot[bot]"
+          git config user.email "tao-cherry-pick-bot[bot]@users.noreply.github.com"
+
+          # release/* labels -> target branches (label name == branch name)
+          BRANCHES=$(printf '%s' "$LABELS_JSON" \
+            | python3 -c "import json,sys; print('\n'.join(l for l in json.load(sys.stdin) if l.startswith('release/')))")
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No release/* labels on PR #$PR — nothing to backport."
+            exit 0
+          fi
+          echo "Merge commit: $MERGE_SHA"
+          echo "Targets:"; printf '  %s\n' $BRANCHES
+
+          : > summary.md
+          for BR in $BRANCHES; do
+            echo ""
+            echo "=== Backport to $BR ==="
+            if ! git ls-remote --exit-code --heads origin "$BR" >/dev/null 2>&1; then
+              echo "  $BR does not exist — skipping"
+              echo "- \`$BR\`: :grey_question: branch does not exist — skipped" >> summary.md
+              continue
+            fi
+            git fetch --quiet origin "$BR"
+            git checkout -B "cp-work" "origin/$BR"
+
+            if git cherry-pick -x "$MERGE_SHA"; then
+              if git push origin "HEAD:$BR" 2>push.err; then
+                NEW=$(git rev-parse --short HEAD)
+                FULL=$(git rev-parse HEAD)
+                echo "  clean -> pushed to $BR ($NEW)"
+                echo "- \`$BR\`: :white_check_mark: cherry-picked cleanly ([\`$NEW\`]($GITHUB_SERVER_URL/$REPO/commit/$FULL))" >> summary.md
+              else
+                echo "  push REJECTED:"; cat push.err
+                echo "- \`$BR\`: :x: cherry-picked cleanly but the push was **rejected** — is \`tao-cherry-pick-bot\` in the bypass list for every release-branch ruleset? (\`$(head -1 push.err | tr -d '\r')\`)" >> summary.md
+              fi
+            else
+              echo "  conflict -> draft PR"
+              git add -A
+              git commit --no-edit
+              CPBR="cherry-pick/pr-$PR-to-$(printf '%s' "$BR" | tr '/' '-')"
+              git push -f origin "HEAD:$CPBR"
+              {
+                printf '%s\n' "Automated cherry-pick of #$PR to \`$BR\` **hit conflicts** and needs manual resolution."
+                printf '%s\n' ""
+                printf '%s\n' "- Original PR: #$PR"
+                printf '%s\n' "- Cherry-picked commit: \`$MERGE_SHA\`"
+                printf '%s\n' "- Assignee: @$AUTHOR"
+                printf '%s\n' ""
+                printf '%s\n' "Resolve the conflict markers on this branch, then mark the PR ready for review."
+              } > prbody.md
+              URL=$(gh pr create --repo "$REPO" --base "$BR" --head "$CPBR" --draft \
+                --title "[cherry-pick #$PR -> $BR] $PR_TITLE" --body-file prbody.md 2>&1 | tail -1)
+              gh pr edit "$URL" --repo "$REPO" --add-assignee "$AUTHOR" >/dev/null 2>&1 || true
+              echo "- \`$BR\`: :warning: conflicts — draft PR: $URL" >> summary.md
+            fi
+            git cherry-pick --abort >/dev/null 2>&1 || true
+          done
+
+          {
+            echo "<!-- tao-cherry-pick -->"
+            echo "### :cherries: Cherry-pick summary"
+            echo ""
+            cat summary.md
+          } > cpbody.md
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@cpbody.md >/dev/null
+          echo "posted summary to #$PR"
