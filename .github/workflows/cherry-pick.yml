@@ -107,13 +107,12 @@ jobs:
               CPBR="cherry-pick/pr-$PR-to-$(printf '%s' "$BR" | tr '/' '-')"
               git push -f origin "HEAD:$CPBR"
               {
-                printf '%s\n' "Automated cherry-pick of #$PR to \`$BR\` **hit conflicts** and needs manual resolution."
+                printf '%s\n' "@$AUTHOR — the automated cherry-pick of #$PR to \`$BR\` **hit conflicts** and needs your attention."
                 printf '%s\n' ""
-                printf '%s\n' "- Original PR: #$PR"
+                printf '%s\n' "- Original PR: #$PR (by @$AUTHOR)"
                 printf '%s\n' "- Cherry-picked commit: \`$MERGE_SHA\`"
-                printf '%s\n' "- Assignee: @$AUTHOR"
                 printf '%s\n' ""
-                printf '%s\n' "Resolve the conflict markers on this branch, then mark the PR ready for review."
+                printf '%s\n' "Please resolve the conflict markers on this branch, then mark the PR ready for review."
               } > prbody.md
               URL=$(gh pr create --repo "$REPO" --base "$BR" --head "$CPBR" --draft \
                 --title "[cherry-pick #$PR -> $BR] $PR_TITLE" --body-file prbody.md 2>&1 | tail -1)
