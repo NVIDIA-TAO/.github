@@ -125,6 +125,7 @@ jobs:
               printf '%s\n' ""
               printf '%s\n' "- Comment **\`/build\`** to run CI on your latest commit, and make sure **\`blossom-ci\`** is green before merging."
               printf '%s\n' "- **Re-run \`/build\` after each new push** — CI is pinned to the head commit, so a stale run won't count."
+              printf '%s\n' "- Should this fix also ship in a release? Add a **\`release/X.Y.Z\`** label (matching the target release branch) and \`tao-cherry-pick-bot\` will backport it after merge."
               if [ -n "$CONTRIB" ]; then
                 printf '%s\n' ""
                 printf '%s\n' ":book: **[Contribution guide]($CONTRIB)**"
