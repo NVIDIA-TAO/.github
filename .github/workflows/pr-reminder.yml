@@ -133,9 +133,11 @@ jobs:
               printf '%s\n' ""
               printf '%s\n' "> [!TIP]"
               printf '%s\n' "> Should this fix also ship in a release? Add a **\`release/X.Y.Z\`** label (matching the target release branch) and \`tao-cherry-pick-bot\` will backport it after merge."
+              printf '%s\n' ""
               if [ -n "$CONTRIB" ]; then
-                printf '%s\n' ""
-                printf '%s\n' ":book: **[Contribution guide]($CONTRIB)**"
+                printf '%s\n' "Before merging: every file needs a **license header** and every commit must be **DCO signed-off** — see the :book: **[Contribution guide]($CONTRIB)** for details."
+              else
+                printf '%s\n' "Before merging: every file needs a **license header** and every commit must be **DCO signed-off**."
               fi
             } > body.md
           else
@@ -144,9 +146,11 @@ jobs:
               printf '%s\n' "### :wave: Thanks for the contribution!"
               printf '%s\n' ""
               printf '%s\n' "For security reasons, CI runs on NVIDIA's runners only **after a maintainer vets this PR**. A TAO maintainer will review and trigger CI (\`/build\`) for you — no action needed on your side beyond addressing review feedback."
+              printf '%s\n' ""
               if [ -n "$CONTRIB" ]; then
-                printf '%s\n' ""
-                printf '%s\n' ":book: Please review the **[Contribution guide]($CONTRIB)**."
+                printf '%s\n' "Before merging: every file needs a **license header** and every commit must be **DCO signed-off** — see the :book: **[Contribution guide]($CONTRIB)** for details."
+              else
+                printf '%s\n' "Before merging: every file needs a **license header** and every commit must be **DCO signed-off**."
               fi
             } > body.md
           fi
