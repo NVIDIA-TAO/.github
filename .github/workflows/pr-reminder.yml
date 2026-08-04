@@ -65,6 +65,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           ASSOC: ${{ github.event.pull_request.author_association }}
           VISIBILITY: ${{ github.event.repository.visibility }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
           MARKER="<!-- tao-pr-reminder -->"
@@ -72,10 +73,14 @@ jobs:
           # Internal detection:
           #  - private/internal repos have NO external contributors (you must be an
           #    org/enterprise member to open a PR), so everyone is internal.
-          #  - public repos: fall back to author_association. Note a private org
-          #    membership can read as CONTRIBUTOR here -> external message (harmless);
-          #    tighten later with an org-members check if it matters.
+          #  - public repos: authoritative org-membership check via the app token
+          #    (needs Organization > Members: Read on tao-pr-bot). GET .../members/<user>
+          #    returns 204 for members (incl. private), 404 otherwise.
+          #  - fallback: author_association, used only if the membership call can't
+          #    answer (e.g. before the Members:Read permission is granted).
           if [[ "$VISIBILITY" == "private" || "$VISIBILITY" == "internal" ]]; then
+            INTERNAL=1
+          elif GH_TOKEN="$APP_TOKEN" gh api "orgs/${REPO%%/*}/members/$AUTHOR" >/dev/null 2>&1; then
             INTERNAL=1
           else
             case "$ASSOC" in
