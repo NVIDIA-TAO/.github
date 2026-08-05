@@ -87,7 +87,7 @@ All nine repositories are public and Apache-2.0 licensed.
 ## How the repos fit together
 
 <p align="center">
-  <img src="./NVIDIA-TAO-repo-map.svg" alt="NVIDIA TAO repository map: the skill bank interface, an optional tao-sdks execution layer, a data → train & tune → deploy workflow, on top of tao-core shared infrastructure." width="78%" />
+  <img src="https://raw.githubusercontent.com/NVIDIA-TAO/.github/main/profile/NVIDIA-TAO-repo-map.svg" alt="NVIDIA TAO repository map: the skill bank interface, an optional tao-sdks execution layer, a data → train & tune → deploy workflow, on top of tao-core shared infrastructure." width="78%" />
 </p>
 
 ## What you can build
