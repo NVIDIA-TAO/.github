@@ -131,7 +131,7 @@ and container licenses are described on their respective NGC model cards.
 
 - 🚀 [Getting Started guide](https://docs.nvidia.com/tao/tao-toolkit/latest/text/getting_started.html)
 - 📚 [TAO Documentation](https://docs.nvidia.com/tao/tao-toolkit/text/overview.html)
-- 🎥 [TAO quick-start video](https://www.nvidia.com/en-us/on-demand/session/other2022-tao/)
+- 🎥 [Getting started with TAO (video)](https://www.youtube.com/watch?v=9AQkVbx3fKA)
 - ✍️ [NVIDIA Developer Blog — TAO](https://developer.nvidia.com/blog/post-train-nvidia-cosmos-3-in-one-day-using-agent-skills/)
 
 <div align="center">
