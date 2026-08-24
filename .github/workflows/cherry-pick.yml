@@ -67,6 +67,12 @@ jobs:
           git config user.name  "tao-cherry-pick-bot[bot]"
           git config user.email "tao-cherry-pick-bot[bot]@users.noreply.github.com"
 
+          # Scratch files live OUTSIDE the working tree. In the tree they would
+          # (a) collide with a tracked file of the same name at `git checkout`
+          # (e.g. a tracked summary.md on a release branch) and (b) get swept into
+          # a commit by the conflict path's `git add -A`. Both have happened.
+          SCRATCH="$(mktemp -d)"
+
           # release/* labels -> target branches (label name == branch name)
           BRANCHES=$(printf '%s' "$LABELS_JSON" \
             | python3 -c "import json,sys; print('\n'.join(l for l in json.load(sys.stdin) if l.startswith('release/')))")
@@ -78,27 +84,27 @@ jobs:
           echo "Merge commit: $MERGE_SHA"
           echo "Targets:"; printf '  %s\n' $BRANCHES
 
-          : > summary.md
+          : > "$SCRATCH/summary.md"
           for BR in $BRANCHES; do
             echo ""
             echo "=== Backport to $BR ==="
             if ! git ls-remote --exit-code --heads origin "$BR" >/dev/null 2>&1; then
               echo "  $BR does not exist — skipping"
-              echo "- \`$BR\`: :grey_question: branch does not exist — skipped" >> summary.md
+              echo "- \`$BR\`: :grey_question: branch does not exist — skipped" >> "$SCRATCH/summary.md"
               continue
             fi
             git fetch --quiet origin "$BR"
             git checkout -B "cp-work" "origin/$BR"
 
             if git cherry-pick -x "$MERGE_SHA"; then
-              if git push origin "HEAD:$BR" 2>push.err; then
+              if git push origin "HEAD:$BR" 2>"$SCRATCH/push.err"; then
                 NEW=$(git rev-parse --short HEAD)
                 FULL=$(git rev-parse HEAD)
                 echo "  clean -> pushed to $BR ($NEW)"
-                echo "- \`$BR\`: :white_check_mark: cherry-picked cleanly ([\`$NEW\`]($GITHUB_SERVER_URL/$REPO/commit/$FULL))" >> summary.md
+                echo "- \`$BR\`: :white_check_mark: cherry-picked cleanly ([\`$NEW\`]($GITHUB_SERVER_URL/$REPO/commit/$FULL))" >> "$SCRATCH/summary.md"
               else
-                echo "  push REJECTED:"; cat push.err
-                echo "- \`$BR\`: :x: cherry-picked cleanly but the push was **rejected** — is \`tao-cherry-pick-bot\` in the bypass list for every release-branch ruleset? (\`$(head -1 push.err | tr -d '\r')\`)" >> summary.md
+                echo "  push REJECTED:"; cat "$SCRATCH/push.err"
+                echo "- \`$BR\`: :x: cherry-picked cleanly but the push was **rejected** — is \`tao-cherry-pick-bot\` in the bypass list for every release-branch ruleset? (\`$(head -1 "$SCRATCH/push.err" | tr -d '\r')\`)" >> "$SCRATCH/summary.md"
               fi
             else
               echo "  conflict -> draft PR"
@@ -113,11 +119,11 @@ jobs:
                 printf '%s\n' "- Cherry-picked commit: \`$MERGE_SHA\`"
                 printf '%s\n' ""
                 printf '%s\n' "Please resolve the conflict markers on this branch, then mark the PR ready for review."
-              } > prbody.md
+              } > "$SCRATCH/prbody.md"
               URL=$(gh pr create --repo "$REPO" --base "$BR" --head "$CPBR" --draft \
-                --title "[cherry-pick #$PR -> $BR] $PR_TITLE" --body-file prbody.md 2>&1 | tail -1)
+                --title "[cherry-pick #$PR -> $BR] $PR_TITLE" --body-file "$SCRATCH/prbody.md" 2>&1 | tail -1)
               gh pr edit "$URL" --repo "$REPO" --add-assignee "$AUTHOR" >/dev/null 2>&1 || true
-              echo "- \`$BR\`: :warning: conflicts — draft PR: $URL" >> summary.md
+              echo "- \`$BR\`: :warning: conflicts — draft PR: $URL" >> "$SCRATCH/summary.md"
             fi
             git cherry-pick --abort >/dev/null 2>&1 || true
           done
@@ -126,7 +132,7 @@ jobs:
             echo "<!-- tao-cherry-pick -->"
             echo "### :cherries: Cherry-pick summary"
             echo ""
-            cat summary.md
-          } > cpbody.md
-          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@cpbody.md >/dev/null
+            cat "$SCRATCH/summary.md"
+          } > "$SCRATCH/cpbody.md"
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$SCRATCH/cpbody.md" >/dev/null
           echo "posted summary to #$PR"
