@@ -5,61 +5,38 @@ name: Cherry-pick to release (reusable)
 #   name: Cherry-pick to release
 #   on:
 #     pull_request_target:
-#       types: [closed, labeled]     # closed  => backport on merge
-#                                    # labeled => backport when a release/* label is added AFTER
-#                                    #            merge (the "forgot the label" recovery path)
-#     workflow_dispatch:             # manual retrigger for a merged PR, by number
-#       inputs:
-#         pr_number:
-#           description: 'Merged PR number to (re)backport to its release/* labeled branches'
-#           required: true
-#           type: string
+#       types: [closed]
 #   jobs:
 #     cherry-pick:
 #       if: >-
-#         github.event_name == 'workflow_dispatch' ||
-#         (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+#         github.event.pull_request.merged == true &&
+#         github.event.pull_request.base.ref == 'main'
 #       uses: NVIDIA-TAO/.github/.github/workflows/cherry-pick.yml@main
-#       with:
-#         pr_number: ${{ github.event.inputs.pr_number || '' }}
 #       secrets: inherit
 #
-# Cherry-picks a merged PR's merge commit onto every release branch named by a
-# `release/X.Y.Z` label on the PR (label == branch). Labels + merge SHA are read
-# LIVE from the PR at run time (via `gh pr view`), NOT from the frozen triggering
-# event payload — so a release/* label added AFTER merge is honored on the next
-# trigger (a `labeled` event, or a manual `workflow_dispatch` by PR number).
-# Idempotent: a branch that already contains the cherry-pick (via the `-x` marker)
-# is skipped, so repeated label events / re-runs never duplicate or spuriously conflict.
-#   - clean    -> blind-push straight to the release branch (bot bypasses the ruleset)
-#   - conflict -> push a `cherry-pick/...` branch and open a DRAFT PR, assigned to the author
+# When a PR merges to main, this cherry-picks its merge commit onto every
+# release branch named by a `release/X.Y.Z` label on the PR (label == branch):
+#   - clean  -> blind-push straight to the release branch (the bot bypasses the
+#               release ruleset + the blossom-ci required check)
+#   - conflict -> push a `cherry-pick/...` branch and open a DRAFT PR to the
+#                 release branch, assigned to the PR author, for manual resolve
 # A summary comment is posted back on the original PR.
 #
-# Cherry-picks a MERGED (already-reviewed, on-main) commit — no untrusted PR code runs.
-# Runs as tao-cherry-pick-bot via an app token.
+# Cherry-picks a MERGED (already-reviewed, on-main) commit — no untrusted PR
+# code is executed. Runs as tao-cherry-pick-bot via an app token.
 #
 # Requires secrets (via `secrets: inherit` — set once at org level):
 #   TAO_CHERRY_PICK_BOT_APP_ID, TAO_CHERRY_PICK_BOT_PRIVATE_KEY
 
 on:
-  workflow_call:
-    inputs:
-      pr_number:
-        description: 'PR number to (re)backport. Empty = use the triggering pull_request event.'
-        type: string
-        required: false
-        default: ''
+  workflow_call: {}
 
 permissions:
   contents: read
 
 jobs:
   cherry-pick:
-    # Run for an explicit PR number (manual dispatch) OR a merged pull_request event
-    # (closed on merge, or a label added to an already-merged PR).
-    if: >-
-      inputs.pr_number != '' ||
-      github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Mint tao-cherry-pick-bot token
@@ -69,61 +46,21 @@ jobs:
           app-id: ${{ secrets.TAO_CHERRY_PICK_BOT_APP_ID }}
           private-key: ${{ secrets.TAO_CHERRY_PICK_BOT_PRIVATE_KEY }}
 
-      - name: Resolve PR metadata (live)
-        id: pr
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-          REPO: ${{ github.repository }}
-          INPUT_PR: ${{ inputs.pr_number }}
-          EVENT_PR: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          PR="${INPUT_PR:-}"
-          [ -z "$PR" ] && PR="${EVENT_PR:-}"
-          if [ -z "$PR" ]; then echo "::error::no PR number (neither input nor pull_request event)"; exit 1; fi
-
-          # Read the PR LIVE so labels reflect the current state (not the frozen event
-          # payload). This is what lets a release/* label added AFTER merge be honored.
-          DATA=$(gh pr view "$PR" --repo "$REPO" \
-            --json number,state,mergeCommit,title,author,baseRefName,labels)
-          STATE=$(printf '%s' "$DATA" | jq -r '.state')
-          BASE=$(printf '%s' "$DATA" | jq -r '.baseRefName')
-
-          if [ "$STATE" != "MERGED" ]; then
-            echo "PR #$PR is not merged — nothing to backport."
-            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          if [ "$BASE" != "main" ]; then
-            echo "PR #$PR base is '$BASE' (not main) — skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-
-          {
-            echo "PR=$PR"
-            echo "MERGE_SHA=$(printf '%s' "$DATA" | jq -r '.mergeCommit.oid')"
-            echo "AUTHOR=$(printf '%s' "$DATA" | jq -r '.author.login')"
-            echo "LABELS_JSON=$(printf '%s' "$DATA" | jq -c '[.labels[].name]')"
-          } >> "$GITHUB_ENV"
-          # Title can contain characters awkward for a KEY=VALUE env line; use a heredoc.
-          {
-            echo "PR_TITLE<<__CP_EOF__"
-            printf '%s\n' "$(printf '%s' "$DATA" | jq -r '.title')"
-            echo "__CP_EOF__"
-          } >> "$GITHUB_ENV"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-
       - name: Checkout (full history)
-        if: steps.pr.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
 
       - name: Cherry-pick to labeled release branches
-        if: steps.pr.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
 
@@ -157,17 +94,6 @@ jobs:
               continue
             fi
             git fetch --quiet origin "$BR"
-
-            # Idempotency: skip if this merge commit is already cherry-picked onto $BR.
-            # `git cherry-pick -x` stamps '(cherry picked from commit <sha>)' in the message,
-            # so a re-run (another label event, or a manual dispatch) never duplicates the
-            # commit or trips a spurious "empty cherry-pick" conflict.
-            if git log "origin/$BR" --fixed-strings --grep="cherry picked from commit $MERGE_SHA" -1 --pretty=%H | grep -q .; then
-              echo "  already backported to $BR — skipping"
-              echo "- \`$BR\`: :ballot_box_with_check: already cherry-picked — skipped" >> "$SCRATCH/summary.md"
-              continue
-            fi
-
             git checkout -B "cp-work" "origin/$BR"
 
             if git cherry-pick -x "$MERGE_SHA"; then
